@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt
-
+#from multiprocessing import Process, Pipe
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -25,5 +25,6 @@ client.connect("localhost", 1883, 60)
 # manual interface.
 try:    
     client.loop_forever()
+    pass
 except KeyboardInterrupt:
     print("Time to go now. Shutting down...")
