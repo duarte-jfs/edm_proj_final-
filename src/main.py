@@ -2,7 +2,7 @@
 from umqttsimple import MQTTClient
 import ubinascii
 from machine import unique_id, Pin, reset, ADC
-from time import sleep, time
+from utime import ticks_ms
 
 mqtt_server = "192.168.1.68"
 client_id = ubinascii.hexlify(unique_id())
@@ -47,27 +47,31 @@ def get_voltage():
     return adc.read()/4095*3.3
 
 
-def loop(message_interval=0.5, precision=4, packet_size=20):
+def loop(message_interval=1, precision=4, packet_size=10):
     global client
 
+    message_interval*=1000
     last_message = 0
     counter = 0
+    
     msg = b""
     while True:
         try:
 
             if len(msg) < packet_size*(precision+2):
                 msg += str(get_voltage())[0:precision+2]+" "
-            if (time() - last_message) > message_interval:
-                client.publish(topic_pub, msg)
-                last_message = time()
+                
+            if (ticks_ms() - last_message) > message_interval:              
+                client.publish(topic_pub,msg)
+                last_message = ticks_ms()
                 counter += 1
                 msg=b""
+                
         except OSError as e:
             restart_and_reconnect()
 
 
 try:
-    loop(message_interval=0.5, precision=4, packet_size=100)
+    loop(message_interval=0.015, precision=5, packet_size=100)
 except KeyboardInterrupt:
     print("Time to go now. Shutting down...")
