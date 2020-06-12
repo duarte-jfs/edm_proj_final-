@@ -1,145 +1,479 @@
-# -*- coding: utf-8 -*-
-
-# Form implementation generated from reading ui file 'sample_gui.ui'
-#
-# Created by: PyQt5 UI code generator 5.13.0
-#
-# WARNING! All changes made in this file will be lost!
-
-
+from PyQt5 import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
 import paho.mqtt.client as mqtt
 import sys
 import numpy as np
 
-class MQTT_Client(QObject):
-    # Define your signals
-    messageSignal = pyqtSignal(str)
 
-    connected = pyqtSignal()
-    disconnected = pyqtSignal()
+class MQTT_Client(QtCore.QObject):
+    # Define the signals. Qt terminology.
+
+    messageSignal = QtCore.pyqtSignal(str)
+
+    connected = QtCore.pyqtSignal()
+    disconnected = QtCore.pyqtSignal()
 
     def __init__(self):
-        QObject.__init__(self)
+        QtCore.QObject.__init__(self)
 
+        # define your default client settings
         self.host = "localhost"
         self.port = 1883
         self.keepAlive = 60
         self.cleanSession = True
         self.subscribe_topic = "measurement"
 
+        self.state = "disconnected"  # created to keep track of the state of the client
+
+        # Create the paho client and set your callbacks
         self.client = mqtt.Client(clean_session=self.cleanSession)
         self.client.on_connect = self.on_connect1
         self.client.on_message = self.on_message1
         self.client.on_disconnect = self.on_disconnect1
 
     def on_message1(self, mqttc, obj, msg):
-        mstr = msg.payload.decode("ascii")
-        # print("on_message", mstr, obj, mqttc)
-        self.messageSignal.emit(mstr)
+        mstr = str(msg.payload)
+        self.messageSignal.emit(mstr)  # Emit the signal.Qt terminology
 
     def on_connect1(self, *args):
-        # print("on_connect", args)
-        self.connected.emit()
+        self.connected.emit()  # Emit the signal.Qt terminology
 
     def on_disconnect1(self, *args):
-        # print("on_disconnect", args)
-        self.disconnected.emit()
+        self.disconnected.emit()  # Emit the signal.Qt terminology
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def connectToHost(self):
+        # The function to connect the client to the broker.
+
         self.client.connect(self.host,
                             port=self.port,
                             keepalive=self.keepAlive)
-
+        self.state = "connected"
         self.client.subscribe(self.subscribe_topic)
         self.client.loop_start()
+        print("connected")
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def disconnectFromHost(self):
+        # Call this function if you want to disconnect the broker
+        self.client.loop_stop()
+        self.state = "disconnected"
         self.client.disconnect()
 
 
 class Ui_MainWindow(object):
+
     def setupUi(self, MainWindow):
+        # Here starts the main constructor. It mainly constitutes all the
+        # "architecture" of the app: Instances the objects, places them in the respective layouts and other things.
+
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
-        self.centralwidget = QWidget(MainWindow)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        self.gridLayout = QGridLayout(self.centralwidget)
+        self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
-        self.pushButton = QPushButton(self.centralwidget)
-        self.pushButton.setObjectName("pushButton")
-        self.gridLayout.addWidget(self.pushButton, 0, 0, 1, 1)
-        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
+        self.verticalLayout_2 = QtWidgets.QVBoxLayout()
+        self.verticalLayout_2.setObjectName("verticalLayout_2")
+        self.mqtt_label = QtWidgets.QLabel(self.centralwidget)
+        self.mqtt_label.setObjectName("mqtt_label")
+        self.verticalLayout_2.addWidget(
+            self.mqtt_label, 0, QtCore.Qt.AlignHCenter)
+
+        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.host_label = QtWidgets.QLabel(self.centralwidget)
+        self.host_label.setObjectName("host_label")
+        self.horizontalLayout_3.addWidget(self.host_label)
+        spacerItem = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout_3.addItem(spacerItem)
+        self.line_host = QtWidgets.QLineEdit(self.centralwidget)
+        self.line_host.setObjectName("line_host")
+        self.horizontalLayout_3.addWidget(self.line_host)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_3)
+
+        self.horizontalLayout_4 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_4.setObjectName("horizontalLayout_4")
+        self.port_label = QtWidgets.QLabel(self.centralwidget)
+        self.port_label.setObjectName("port_label")
+        self.horizontalLayout_4.addWidget(self.port_label)
+        spacerItem1 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout_4.addItem(spacerItem1)
+        self.line_port = QtWidgets.QLineEdit(self.centralwidget)
+        self.line_port.setObjectName("line_port")
+        self.horizontalLayout_4.addWidget(self.line_port)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_4)
+
+        self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        self.topic_label = QtWidgets.QLabel(self.centralwidget)
+        self.topic_label.setObjectName("topic_label")
+        self.horizontalLayout_5.addWidget(self.topic_label)
+        spacerItem2 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout_5.addItem(spacerItem2)
+        self.line_topic = QtWidgets.QLineEdit(self.centralwidget)
+        self.line_topic.setObjectName("line_topic")
+        self.horizontalLayout_5.addWidget(self.line_topic)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_5)
+
+        self.button_conn = QtWidgets.QPushButton(self.centralwidget)
+        self.button_conn.setObjectName("button_conn")
+        self.verticalLayout_2.addWidget(self.button_conn)
+
+        self.button_disconn = QtWidgets.QPushButton(self.centralwidget)
+        self.button_disconn.setObjectName("button_disconn")
+        self.verticalLayout_2.addWidget(self.button_disconn)
+
+        self.button_erase_data = QtWidgets.QPushButton(self.centralwidget)
+        self.button_erase_data.setObjectName("button_erase_data")
+        self.verticalLayout_2.addWidget(self.button_erase_data)
+
+        #arrange the line to edit the message interval
+        self.horizontalLayout_6 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_6.setObjectName("horizontalLayout_6")
+        self.msg_int_label = QtWidgets.QLabel(self.centralwidget)
+        self.msg_int_label.setObjectName("msg_int_label")
+        self.horizontalLayout_6.addWidget(self.msg_int_label)
+        spacerItem2 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout_6.addItem(spacerItem2)
+        self.line_msg_int = QtWidgets.QLineEdit(self.centralwidget)
+        self.line_msg_int.setObjectName("line_msg_int")
+        self.horizontalLayout_6.addWidget(self.line_msg_int)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_6)
+
+        #arrange the line to edit the sampling freq
+        self.horizontalLayout_7 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_7.setObjectName("horizontalLayout_6")
+        self.sampling_freq_label = QtWidgets.QLabel(self.centralwidget)
+        self.sampling_freq_label.setObjectName("sampling_freq_label")
+        self.horizontalLayout_7.addWidget(self.sampling_freq_label)
+        spacerItem2 = QtWidgets.QSpacerItem(
+            40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.horizontalLayout_7.addItem(spacerItem2)
+        self.line_sampling_freq = QtWidgets.QLineEdit(self.centralwidget)
+        self.line_sampling_freq.setObjectName("line_sampling_freq")
+        self.horizontalLayout_7.addWidget(self.line_sampling_freq)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_7)
+
+        #set the button to publish
+        self.button_publish = QtWidgets.QPushButton(self.centralwidget)
+        self.button_publish.setObjectName("button_publish")
+        self.verticalLayout_2.addWidget(self.button_publish)
+
+        self.verticalLayout_3 = QtWidgets.QVBoxLayout()
+        self.verticalLayout_3.setObjectName("verticalLayout_3")
+        self.n_points = QtWidgets.QLabel(self.centralwidget)
+        self.n_points.setObjectName("n_points")
+        self.verticalLayout_3.addWidget(self.n_points)
+        self.horizontalSlider = QtWidgets.QSlider(self.centralwidget)
+        self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.horizontalSlider.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        self.horizontalSlider.setTickInterval(4)
+        self.horizontalSlider.setObjectName("horizontalSlider")
+        self.verticalLayout_3.addWidget(self.horizontalSlider)
+        self.verticalLayout_2.addLayout(self.verticalLayout_3)
+
+        self.listWidget = QtWidgets.QListWidget(self.centralwidget)
+        self.listWidget.setObjectName("listWidget")
+        self.verticalLayout_2.addWidget(self.listWidget)
+
+        self.horizontalLayout.addLayout(self.verticalLayout_2)
+
+        self.verticalLayout = QtWidgets.QVBoxLayout()
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.plot_long = pg.PlotWidget(self.centralwidget)
+        self.plot_long.setObjectName("plot_long")
+        self.verticalLayout.addWidget(self.plot_long)
+
         self.plot = pg.PlotWidget(self.centralwidget)
-        self.plot.setObjectName("widget")
-        self.horizontalLayout.addWidget(self.plot)
-        self.gridLayout.addLayout(self.horizontalLayout, 0, 1, 1, 1)
+        self.plot.setObjectName("plot")
+        self.verticalLayout.addWidget(self.plot)
+        self.horizontalLayout.addLayout(self.verticalLayout)
+        self.horizontalLayout.setStretch(0, 25)
+        self.horizontalLayout.setStretch(1, 75)
+        self.gridLayout.addLayout(self.horizontalLayout, 0, 0, 1, 1)
+
         MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QMenuBar(MainWindow)
-        self.menubar.setGeometry(QRect(0, 0, 800, 21))
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QStatusBar(MainWindow)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        QMetaObject.connectSlotsByName(MainWindow)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-        self.client = MQTT_Client()
-        self.client.messageSignal.connect(self.onMessage)
-        self.pushButton.clicked.connect(self.client.connectToHost)
+        #-------------------The functional part of the app starts here-------------------------#
+        #Instance some dummy data for the settings
+        self.sampling_freq=1000 #in hertz
+        self.message_interval=50 #in miliseconds
 
-        # starts here
-        self.xdata = [0]
+        # initialize the live data plot
+        self.N = 3000  # pre set the amount of points the live data plot
+        self.xdata = [0]  # initialize some dummy data
         self.ydata = [0]
+
+        # instance the curve object
         self.curve1 = pg.PlotDataItem(self.xdata, self.ydata)
         self.plot.addItem(self.curve1)
-        self.plot.setLabels(title="Data from potentiometer", bottom="Time in miliseconds from start of measurement", left="Voltage (V)")
+        self.plot.setLabels(title="Data from potentiometer",
+                            bottom="Time in seconds from start of measurement", left="Voltage (V)")
 
-        #Just adding a timer to know the sample freq
-        self.qtimer=QTimer()
-        self.qtimer.setInterval(5000)
-        self.qtimer.timeout.connect(self.get_freq)
-        self.qtimer.start()
+        # initialize the long range data plot
+        self.xdata_long = [0]
+        self.ydata_long = [0]
+        self.curve2 = pg.PlotDataItem(self.xdata_long, self.ydata_long)
+        self.plot_long.addItem(self.curve2)
+        self.plot_long.setLabels(title="Data from potentiometer from the beggining",
+                                 bottom="Time in seconds from start of measurement",
+                                 left="Voltage (V)")
+
+        # Instance the custom client
+        self.client = MQTT_Client()
+
+        # Connect the signals to its respective slots
+        self.client.messageSignal.connect(self.onMessage)
+        self.button_conn.clicked.connect(self.connect)
+        self.button_disconn.clicked.connect(self.disconnect)
+        self.button_erase_data.clicked.connect(self.erase_data)
+        self.horizontalSlider.valueChanged.connect(self.set_n)
+        self.line_host.editingFinished.connect(self.host_edit)
+        self.line_port.editingFinished.connect(self.port_edit)
+        self.line_topic.editingFinished.connect(self.topic_edit)
+        self.line_msg_int.editingFinished.connect(self.msg_int_edit)
+        self.line_sampling_freq.editingFinished.connect(self.sampling_freq_edit)
+        self.button_publish.clicked.connect(self.publish_settings)
+
+        # adding a timer to get the long ranged data
+        self.qtimer = QtCore.QTimer()
+        self.qtimer.setInterval(1000)
+        # Connect the timeout event to a slot
+        self.qtimer.timeout.connect(self.get_long_data)
+
+        # Second timer to get the frequency
+        self.qtimer1 = QtCore.QTimer()
+        self.qtimer1.setInterval(10000)
+        self.qtimer1.timeout.connect(self.get_freq)
 
     def get_freq(self):
-        x=np.asarray(self.xdata)
-        xdiff=x[1:]-x[:len(x)-1]
-        dt=np.mean(xdiff)/1000
-        print(1/dt, " Hz")
+        # Prints the avg sampling frequency on the listwidget
+        try:
+            x = np.asarray(self.xdata)
+            xdiff = x[1:]-x[:len(x)-1]
+            dt = np.mean(xdiff)
+            self.listWidget.addItem(
+                "--> Avg sampling frequency from \n the last {} points:\n{} Hz \n Packet size= {} \n Measurement duration= {} \n Time between messages= {} \n Delay = {}".format(len(x), str(1/dt)[:7], self.packet_size, self.meas_duration, self.time_between_msgs/1e6, self.delay))
+        except RuntimeWarning:
+            pass
+    
+    def publish_settings(self):
+        msg=str(self.sampling_freq)+" "+str(self.message_interval)
+        print(msg)
+        self.client.client.publish("settings",msg)
+        self.listWidget.addItem("--> Published settings")
+        self.client.connectToHost()
+
+    def sampling_freq_edit(self):
+        # reassigns the new hostname based on the line edit
+        text = self.line_sampling_freq.text()
+        if text == "":  # catches the null editing of a line
+            pass
+        else:
+            try:
+                self.sampling_freq = int(text)
+                self.listWidget.addItem("--> sampling frequency changed to:{} \n and ready to publish".format(text))    
+            except:
+                self.listWidget.addItem("--> Something went wrong. \n Try entering an integer.")
+
+    def msg_int_edit(self):
+        # reassigns the new hostname based on the line edit
+        text = self.line_msg_int.text()
+        if text == "":  # catches the null editing of a line
+            pass
+        else:
+            try:
+                self.message_interval = int(text)
+                self.listWidget.addItem("--> sampling frequency changed to:{} \n and ready to publish".format(text)) 
+            except:
+                self.listWidget.addItem("--> Something went wrong. \n Try entering an integer.")
+
+    def host_edit(self):
+        # reassigns the new hostname based on the line edit
+        text = self.line_host.text()
+        if text == "":  # catches the null editing of a line
+            pass
+        else:
+            self.client.host = text
+            self.listWidget.addItem("--> Hostname changed to:{}".format(text))
+
+    def port_edit(self):
+        # reassings a new port based on the line edit
+        text = self.line_port.text()
+        if text == "":
+            pass
+        else:
+            try:
+                self.client.port = int(text)
+                self.listWidget.addItem("--> Port changed to:{}".format(text))
+            except ValueError:
+                self.listWidget.addItem("--> Insert an integer, not a string.")
+
+    def topic_edit(self):
+        # Reassigns a new topic to subscribe.
+
+        text = self.line_topic.text()
+        if text == "":
+            pass
+        else:
+            self.client.subscribe_topic = text
+            self.listWidget.addItem(
+                "--> Topic to subscribe changed to:{}".format(text))
+
+    def connect(self):
+        # handles the connection after clicking the button
+        if self.client.state == "connected":
+            self.listWidget.addItem("-->Already connected to a host")
+        else:
+            try:
+                self.client.connectToHost()
+                self.listWidget.addItem("--> GUI connected: \n hostname: \"{}\"   \n Port: {} \n Clean session {} \n Subscribed to \"{}\"".format(
+                    self.client.host, self.client.port, self.client.cleanSession, self.client.subscribe_topic))
+
+                self.first_message = True  # set the first message criteria on connection
+                # start the timers
+                self.qtimer.start()
+                self.qtimer1.start()
+
+            except:
+                self.listWidget.addItem("--> Something went wrong. Try again")
+
+    def get_long_data(self):
+        if len(self.xdata) > 1:
+            try:
+                self.xdata_long.append(self.xdata[-1])
+                self.ydata_long.append(np.mean(self.ydata[-10:]))
+                self.curve2.setData(self.xdata_long[1:], self.ydata_long[1:])
+            except IndexError:
+                pass
+
+    def set_n(self, value):
+        # handles the change on the slider for the number of points.
+        n_points = [50*i for i in range(1000)]
+        self.N = n_points[value]
 
     def onMessage(self, msg):
-        data, time = msg.split("|")
-        data = [float(i) for i in data.split()]
-        time = [float(i) for i in time.split()]
+        # Handles the reception of a new message from the broker
+        data = msg.split(", ")
 
-        self.ydata += data
+        data[0] = data[0][3:]
+        data[-1] = data[-1][:-2]
+
+        # [meas_start]                       [meas stop]  [delay]   [new_msg]
+        #     |------------measurement-------------|-------------| |--------------measurement-----------|---------|
+        if self.first_message:
+
+            self.previous_start = int(data[0]) #save the start of the first message
+            self.dt = int(data[-1])/1e6/len(data[1:len(data)-1])  # in seconds. Time interval between samples
+
+            voltage = [int(i)/4095*3.3 for i in data[1:len(data)-1]]
+            time = [self.xdata[-1]+i*self.dt for i in range(len(voltage))]
+            self.first_message = False
+
+        else:
+            self.time_between_msgs = int(data[0])-self.previous_start
+            self.delay = self.time_between_msgs-int(data[-1])
+
+            self.delay = self.delay/1e6  # in seconds
+            self.dt = int(data[-1])/1e6/len(data[1:len(data)-1])  # in seconds
+
+            voltage = [int(i)/4095*3.3 for i in data[1:len(data)-1]]
+            time = [self.xdata[-1]+i*self.dt +
+                    self.delay for i in range(len(voltage))]
+
+            # Just to get the current packet size
+            self.packet_size = len(voltage)
+            self.meas_duration=int(data[-1])/1e6
+            self.previous_start = int(data[0])
+
+        self.ydata += voltage
         self.xdata += time
 
-        N = 3000
+        N = self.N
         if len(self.xdata) >= N:
             self.xdata = self.xdata[-N:]
             self.ydata = self.ydata[-N:]
 
+        try:
+            self.curve1.setData(self.xdata[1:], self.ydata[1:])
+        except IndexError:
+            pass
+
+    def erase_data(self): 
+        #Erase all data from the plots
+        self.xdata = [0]
+        self.ydata = [0]
         self.curve1.setData(self.xdata, self.ydata)
 
+        self.xdata_long = [0]
+        self.ydata_long = [0]
+        self.curve2.setData(self.xdata_long, self.ydata_long)
+
+        self.first_message = True
+
+    def disconnect(self):
+        #Disconnect from the host
+        if self.client.state == "disconnected":
+            self.listWidget.addItem("--> Already disconnected from host")
+        else:
+            try:
+                self.client.disconnectFromHost()
+                self.listWidget.addItem("--> GUI disconnected from host.")
+
+                # stop the timers
+                self.qtimer.stop()
+                self.qtimer1.stop()
+            except:
+                self.listWidget.addItem("--> Something went wrong. Try again")
+
     def retranslateUi(self, MainWindow):
-        _translate = QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.pushButton.setText(_translate("MainWindow", "Connect to Broker"))
+        # Just another function to handle the backbones of the app. Just renames stuff
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "Data interface"))
+        self.mqtt_label.setText(_translate(
+            "MainWindow", "MQTT client options"))
+        self.host_label.setText(_translate("MainWindow", "Hostname"))
+        self.port_label.setText(_translate("MainWindow", "Port"))
+        self.topic_label.setText(_translate(
+            "MainWindow", "Topic to subscribe"))
+        self.msg_int_label.setText(_translate(
+            "MainWindow", "Message interval"))
+        self.sampling_freq_label.setText(_translate(
+            "MainWindow", "Sampling freq"))
+        self.button_conn.setText(_translate("MainWindow", "Connect to Host"))
+        self.button_disconn.setText(_translate(
+            "MainWindow", "Disconnect from Host"))
+        self.button_erase_data.setText(_translate("MainWindow", "Erase data"))
+        self.button_publish.setText(_translate("MainWindow", "Publish settings"))
+        self.n_points.setText(_translate(
+            "MainWindow", "Number of points in plot:"))
+        self.plot_long.setStatusTip(_translate(
+            "MainWindow", "Displays the data for long periods of time"))
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    MainWindow = QMainWindow()
+if __name__ == "__main__":  # Launch the GUI
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
+

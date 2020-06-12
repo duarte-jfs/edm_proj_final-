@@ -9,7 +9,6 @@ class MQTT_Client(QtCore.QObject):
     # Define the signals. Qt terminology.
 
     messageSignal = QtCore.pyqtSignal(str)
-
     connected = QtCore.pyqtSignal()
     disconnected = QtCore.pyqtSignal()
 
@@ -32,18 +31,18 @@ class MQTT_Client(QtCore.QObject):
         self.client.on_disconnect = self.on_disconnect1
 
     def on_message1(self, mqttc, obj, msg):
-        mstr = msg.payload.decode("ascii")
+        mstr = str(msg.payload)
         self.messageSignal.emit(mstr)  # Emit the signal.Qt terminology
 
     def on_connect1(self, *args):
-        self.connected.emit() # Emit the signal.Qt terminology
+        self.connected.emit()  # Emit the signal.Qt terminology
 
     def on_disconnect1(self, *args):
-        self.disconnected.emit() # Emit the signal.Qt terminology
+        self.disconnected.emit()  # Emit the signal.Qt terminology
 
     @QtCore.pyqtSlot()
     def connectToHost(self):
-        #The function to connect the client to the broker.
+        # The function to connect the client to the broker.
 
         self.client.connect(self.host,
                             port=self.port,
@@ -51,10 +50,12 @@ class MQTT_Client(QtCore.QObject):
         self.state = "connected"
         self.client.subscribe(self.subscribe_topic)
         self.client.loop_start()
+        print("connected")
 
     @QtCore.pyqtSlot()
     def disconnectFromHost(self):
-        #Call this function if you want to disconnect the broker
+        # Call this function if you want to disconnect the broker
+        self.client.loop_stop()
         self.state = "disconnected"
         self.client.disconnect()
 
@@ -62,9 +63,9 @@ class MQTT_Client(QtCore.QObject):
 class Ui_MainWindow(object):
 
     def setupUi(self, MainWindow):
-        #Here starts the main constructor. It mainly constitutes all the 
-        #"architecture" of the app: Instances the objects, places them in the respective layouts and other things.
-        
+        # Here starts the main constructor. It mainly constitutes all the
+        # "architecture" of the app: Instances the objects, places them in the respective layouts and other things.
+
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -123,6 +124,14 @@ class Ui_MainWindow(object):
         self.button_conn.setObjectName("button_conn")
         self.verticalLayout_2.addWidget(self.button_conn)
 
+        self.button_disconn = QtWidgets.QPushButton(self.centralwidget)
+        self.button_disconn.setObjectName("button_disconn")
+        self.verticalLayout_2.addWidget(self.button_disconn)
+
+        self.button_erase_data = QtWidgets.QPushButton(self.centralwidget)
+        self.button_erase_data.setObjectName("button_erase_data")
+        self.verticalLayout_2.addWidget(self.button_erase_data)
+
         self.verticalLayout_3 = QtWidgets.QVBoxLayout()
         self.verticalLayout_3.setObjectName("verticalLayout_3")
         self.n_points = QtWidgets.QLabel(self.centralwidget)
@@ -169,31 +178,35 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         #-------------------The functional part of the app starts here-------------------------#
-        #initialize the live data plot
-        self.N = 3000 #pre set the amount of points the live data plot
-        self.xdata = [0] #initialize some dummy data
+
+        # initialize the live data plot
+        self.N = 3000  # pre set the amount of points the live data plot
+        self.xdata = [0]  # initialize some dummy data
         self.ydata = [0]
 
-        self.curve1 = pg.PlotDataItem(self.xdata, self.ydata) #instance the curve object
+        # instance the curve object
+        self.curve1 = pg.PlotDataItem(self.xdata, self.ydata)
         self.plot.addItem(self.curve1)
         self.plot.setLabels(title="Data from potentiometer",
-                            bottom="Time in miliseconds from start of measurement", left="Voltage (V)")
+                            bottom="Time in seconds from start of measurement", left="Voltage (V)")
 
-        #initialize the long range data plot
+        # initialize the long range data plot
         self.xdata_long = [0]
         self.ydata_long = [0]
         self.curve2 = pg.PlotDataItem(self.xdata_long, self.ydata_long)
         self.plot_long.addItem(self.curve2)
         self.plot_long.setLabels(title="Data from potentiometer from the beggining",
-                                 bottom="Time in miliseconds from start of measurement",
+                                 bottom="Time in seconds from start of measurement",
                                  left="Voltage (V)")
 
-        #Instance the custom client
+        # Instance the custom client
         self.client = MQTT_Client()
 
-        #Connect the signals to its respective slots
+        # Connect the signals to its respective slots
         self.client.messageSignal.connect(self.onMessage)
         self.button_conn.clicked.connect(self.connect)
+        self.button_disconn.clicked.connect(self.disconnect)
+        self.button_erase_data.clicked.connect(self.erase_data)
         self.horizontalSlider.valueChanged.connect(self.set_n)
         self.line_host.editingFinished.connect(self.host_edit)
         self.line_port.editingFinished.connect(self.port_edit)
@@ -201,34 +214,36 @@ class Ui_MainWindow(object):
 
         # adding a timer to get the long ranged data
         self.qtimer = QtCore.QTimer()
-        self.qtimer.setInterval(1000)
-        self.qtimer.timeout.connect(self.get_long_data) #Connect the timeout event to a slot
+        self.qtimer.setInterval(1000) #set timeout interval. Miliseconds
+        self.qtimer.timeout.connect(self.get_long_data)# Connect the timeout event to a slot
 
         # Second timer to get the frequency
         self.qtimer1 = QtCore.QTimer()
-        self.qtimer1.setInterval(10000)
-        self.qtimer1.timeout.connect(self.get_freq)
-
+        self.qtimer1.setInterval(10000)#set timeout interval. Miliseconds
+        self.qtimer1.timeout.connect(self.get_freq)# Connect the timeout event to a slot
 
     def get_freq(self):
-        #Prints the avg sampling frequency on the listwidget
-        x = np.asarray(self.xdata)
-        xdiff = x[1:]-x[:len(x)-1]
-        dt = np.mean(xdiff)/1000
-        self.listWidget.addItem(
-            "--> Avg sampling frequency from \n the last {} points:\n{} Hz".format(len(x), str(1/dt)[:7]))
-
+        # Prints data on the listwidget
+        try:
+            x = np.asarray(self.xdata)
+            xdiff = x[1:]-x[:len(x)-1]
+            dt = np.mean(xdiff)
+            self.listWidget.addItem(
+                "--> Avg sampling frequency from \n the last {} points:\n{} Hz \n Packet size= {} \n Measurement duration= {} \n Time between messages= {} \n Delay = {}".format(len(x), str(1/dt)[:7], self.packet_size, self.meas_duration, self.time_between_msgs/1e6, self.delay))
+        except RuntimeWarning:
+            pass
+    
     def host_edit(self):
-        #reassigns the new hostname based on the line edit
+        # reassigns the new hostname based on the line edit
         text = self.line_host.text()
-        if text == "": #catches the null editing of a line
+        if text == "":  # catches the null editing of a line
             pass
         else:
             self.client.host = text
             self.listWidget.addItem("--> Hostname changed to:{}".format(text))
 
     def port_edit(self):
-        #reassings a new port based on the line edit
+        # reassings a new port based on the line edit
         text = self.line_port.text()
         if text == "":
             pass
@@ -240,7 +255,7 @@ class Ui_MainWindow(object):
                 self.listWidget.addItem("--> Insert an integer, not a string.")
 
     def topic_edit(self):
-        #Reassigns a new topic to subscribe.
+        # Reassigns a new topic to subscribe.
 
         text = self.line_topic.text()
         if text == "":
@@ -251,7 +266,7 @@ class Ui_MainWindow(object):
                 "--> Topic to subscribe changed to:{}".format(text))
 
     def connect(self):
-        #handles the connection after clicking the button
+        # handles the connection after clicking the button
         if self.client.state == "connected":
             self.listWidget.addItem("-->Already connected to a host")
         else:
@@ -260,9 +275,11 @@ class Ui_MainWindow(object):
                 self.listWidget.addItem("--> GUI connected: \n hostname: \"{}\"   \n Port: {} \n Clean session {} \n Subscribed to \"{}\"".format(
                     self.client.host, self.client.port, self.client.cleanSession, self.client.subscribe_topic))
 
+                self.first_message = True  # set the first message criteria on connection
                 # start the timers
                 self.qtimer.start()
                 self.qtimer1.start()
+
             except:
                 self.listWidget.addItem("--> Something went wrong. Try again")
 
@@ -276,18 +293,45 @@ class Ui_MainWindow(object):
                 pass
 
     def set_n(self, value):
-        #handles the change on the slider for the number of points.
-        n_points = [50*i for i in range(100)]
+        # handles the change on the slider for the number of points.
+        n_points = [50*i for i in range(1000)]
         self.N = n_points[value]
 
     def onMessage(self, msg):
-        #Handles the reception of a new message from the broker
+        # Handles the reception of a new message from the broker
+        data = msg.split(", ")
 
-        data, time = msg.split("|")
-        data = [float(i)/4095*3.3 for i in data.split()]
-        time = [float(i) for i in time.split()]
+        data[0] = data[0][3:]
+        data[-1] = data[-1][:-2]
 
-        self.ydata += data
+        # [meas_start]                       [meas stop]  [delay]   [new_msg]
+        #     |------------measurement-------------|-------------| |--------------measurement-----------|---------|
+        if self.first_message:
+
+            self.previous_start = int(data[0]) #save the start of the first message
+            self.dt = int(data[-1])/1e6/len(data[1:len(data)-1])  # in seconds. Time interval between samples
+
+            voltage = [int(i)/4095*3.3 for i in data[1:len(data)-1]]
+            time = [self.xdata[-1]+i*self.dt for i in range(len(voltage))]
+            self.first_message = False
+
+        else:
+            self.time_between_msgs = int(data[0])-self.previous_start
+            self.delay = self.time_between_msgs-int(data[-1])
+
+            self.delay = self.delay/1e6  # in seconds
+            self.dt = int(data[-1])/1e6/len(data[1:len(data)-1])  # in seconds
+
+            voltage = [int(i)/4095*3.3 for i in data[1:len(data)-1]]
+            time = [self.xdata[-1]+i*self.dt +
+                    self.delay for i in range(len(voltage))]
+
+            # Just to get the current packet size
+            self.packet_size = len(voltage)
+            self.meas_duration=int(data[-1])/1e6
+            self.previous_start = int(data[0])
+
+        self.ydata += voltage
         self.xdata += time
 
         N = self.N
@@ -300,8 +344,35 @@ class Ui_MainWindow(object):
         except IndexError:
             pass
 
+    def erase_data(self): 
+        #Erase all data from the plots
+        self.xdata = [0]
+        self.ydata = [0]
+        self.curve1.setData(self.xdata, self.ydata)
+
+        self.xdata_long = [0]
+        self.ydata_long = [0]
+        self.curve2.setData(self.xdata_long, self.ydata_long)
+
+        self.first_message = True
+
+    def disconnect(self):
+        #Disconnect from the host
+        if self.client.state == "disconnected":
+            self.listWidget.addItem("--> Already disconnected from host")
+        else:
+            try:
+                self.client.disconnectFromHost()
+                self.listWidget.addItem("--> GUI disconnected from host.")
+
+                # stop the timers
+                self.qtimer.stop()
+                self.qtimer1.stop()
+            except:
+                self.listWidget.addItem("--> Something went wrong. Try again")
+
     def retranslateUi(self, MainWindow):
-        #Just another function to handle the backbones of the app. Just renames stuff
+        # Just another function to handle the backbones of the app. Just renames stuff
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Data interface"))
         self.mqtt_label.setText(_translate(
@@ -311,13 +382,16 @@ class Ui_MainWindow(object):
         self.topic_label.setText(_translate(
             "MainWindow", "Topic to subscribe"))
         self.button_conn.setText(_translate("MainWindow", "Connect to Host"))
+        self.button_disconn.setText(_translate(
+            "MainWindow", "Disconnect from Host"))
+        self.button_erase_data.setText(_translate("MainWindow", "Erase data"))
         self.n_points.setText(_translate(
             "MainWindow", "Number of points in plot:"))
         self.plot_long.setStatusTip(_translate(
             "MainWindow", "Displays the data for long periods of time"))
 
 
-if __name__ == "__main__": #Launch the GUI
+if __name__ == "__main__":  # Launch the GUI
     import sys
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()

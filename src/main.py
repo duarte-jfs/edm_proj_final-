@@ -2,7 +2,8 @@
 from umqttsimple import MQTTClient
 import ubinascii
 from machine import unique_id, Pin, reset, ADC, Timer
-from utime import ticks_ms, sleep, ticks_us
+from utime import ticks_ms, sleep, ticks_us, ticks_add,ticks_diff
+import ujson
 
 mqtt_server = "192.168.1.68"
 client_id = ubinascii.hexlify(unique_id())
@@ -13,15 +14,15 @@ def connect():
     global client_id, mqtt_server
 
     client = MQTTClient(client_id, mqtt_server)
-    client.connect()
-    print('Connected to %s MQTT broker' % (mqtt_server))
+    client.connect()    
+    print('Connected to %s MQTT broker ' % (mqtt_server))
+
     return client
 
 def restart_and_reconnect():
     print('Failed to connect to MQTT broker. Reconnecting...')
     sleep(10)
     reset()
-
 
 try:
     client = connect()
@@ -33,77 +34,50 @@ adc = ADC(Pin(32))
 adc.width(ADC.WIDTH_12BIT)
 adc.atten(ADC.ATTN_11DB)
 
-# I'll just make some use of the lights
-green = Pin(19, Pin.OUT)
-yellow = Pin(22, Pin.OUT)
-red = Pin(21, Pin.OUT)
-
 #---------------data part---------------#
-precision = 4
-message_interval = 20
-packet_size = 100
-long_message_interval=5000
+message_interval = 50 #in miliseconds
+sample_freq=8000 #Hz
+ticks_max=ticks_add(0,-1)
+print("Time intil clock resets: ", ticks_max/1e6/60, " minutes")
 #---------------------------------------#
 
-def get_voltage():
-    return adc.read()
+start_beggining=ticks_us() #saves the start of the measurement
+data=[]
+
+def publish(*args):
+    global data
+    global start_beggining
+
+    data.append(ticks_diff(ticks_us(),start_beggining))
+    client.publish(topic_pub,ujson.dumps(data))
+
+    data=[ticks_us()] #initiates a new data packet
+    start_beggining=ticks_us() #saves the new measurement beggining
+
+    
+tim = Timer(-1)
+tim.init(period=message_interval, mode=Timer.PERIODIC, callback=publish)
 
 def loop():
     global client
     global message_interval
-    global precision
-    global packet_size
-    global long_message_interval
+    global data
+    global sample_freq
 
-    last_message = 0
-    counter = 0
+    dt=int(1/sample_freq*1e6)
+    deadline=ticks_add(ticks_us(),dt) #calculate the deadline
 
-    data = b""
-    times=b""
-    
     while True:
-        try:
-
-            value = get_voltage()
-            if 620 < value <= 1985:
-                green.value(True)
-                yellow.value(False)
-                red.value(False)
-            elif 1985 < value <= 3350:
-                green.value(True)
-                yellow.value(True)
-                red.value(False)
-            elif 3350 < value:
-                green.value(True)
-                yellow.value(True)
-                red.value(True)
-            else:
-                green.value(False)
-                yellow.value(False)
-                red.value(False)
-
-            if len(data) < packet_size*4:
-                data += str(value)+" "    
-                times+= str(ticks_ms())+" "
-
-            if (ticks_ms() - last_message) > message_interval:
-                msg=data+"|"+times
-                client.publish(topic_pub, msg)
-                last_message = ticks_ms()
-                data = b""
-                times = b""
-
-            
+        try:       
+            if ticks_diff(deadline,ticks_us())<=0:
+                data.append(adc.read())
+                deadline=ticks_add(ticks_us(),dt)
 
         except OSError as e:
             restart_and_reconnect()
-
-
 try:
     loop()
 except KeyboardInterrupt:
     print("Time to go now. Shutting down...")
 finally:
-    green.value(False)
-    yellow.value(False)
-    red.value(False)
+    tim.deinit()
