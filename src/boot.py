@@ -1,14 +1,10 @@
-# boot.py - - runs on boot-up
+# boot.py - runs on boot-up
 import network
-
 
 ssid = "internet meo"
 password = "432AF34F47"
 
-
-
 # Lets connect to the network
-
 
 def do_connect():
     wlan = network.WLAN(network.STA_IF)
@@ -22,3 +18,5 @@ def do_connect():
 
 
 do_connect()
+
+

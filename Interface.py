@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import paho.mqtt.client as mqtt
 import sys
-
+import numpy as np
 
 class MQTT_Client(QObject):
     # Define your signals
@@ -96,28 +96,44 @@ class Ui_MainWindow(object):
         self.client.messageSignal.connect(self.onMessage)
         self.pushButton.clicked.connect(self.client.connectToHost)
 
-        ##starts here
+        # starts here
         self.xdata = [0]
         self.ydata = [0]
         self.curve1 = pg.PlotDataItem(self.xdata, self.ydata)
         self.plot.addItem(self.curve1)
+        self.plot.setLabels(title="Data from potentiometer", bottom="Time in miliseconds from start of measurement", left="Voltage (V)")
 
-    def onMessage(self,msg):
-        data=[float(value) for value in msg.split()]
-        self.ydata+=data
-        self.xdata+=[self.xdata[-1]+i for i in range(1,len(data)+1)]
+        #Just adding a timer to know the sample freq
+        self.qtimer=QTimer()
+        self.qtimer.setInterval(5000)
+        self.qtimer.timeout.connect(self.get_freq)
+        self.qtimer.start()
 
-        N=2000
-        if len(self.xdata)>=N:
-            self.xdata=self.xdata[-N:]
+    def get_freq(self):
+        x=np.asarray(self.xdata)
+        xdiff=x[1:]-x[:len(x)-1]
+        dt=np.mean(xdiff)/1000
+        print(1/dt, " Hz")
+
+    def onMessage(self, msg):
+        data, time = msg.split("|")
+        data = [float(i) for i in data.split()]
+        time = [float(i) for i in time.split()]
+
+        self.ydata += data
+        self.xdata += time
+
+        N = 3000
+        if len(self.xdata) >= N:
+            self.xdata = self.xdata[-N:]
             self.ydata = self.ydata[-N:]
 
-        self.curve1.setData(self.xdata,self.ydata)
+        self.curve1.setData(self.xdata, self.ydata)
 
     def retranslateUi(self, MainWindow):
         _translate = QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.pushButton.setText(_translate("MainWindow", "PushButton"))
+        self.pushButton.setText(_translate("MainWindow", "Connect to Broker"))
 
 
 if __name__ == "__main__":

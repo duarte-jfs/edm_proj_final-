@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt
-
+import json
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
 
@@ -7,7 +7,8 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
+    #print(msg.topic+" "+str(msg.payload) +"\n")
+    print(type(msg.payload))
 
 client = mqtt.Client()
 client.on_connect = on_connect
