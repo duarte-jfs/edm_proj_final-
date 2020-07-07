@@ -24,7 +24,7 @@ No microcontrolador encontram-se 3 scripts python: `main.py`, `boot.py` e `umqtt
 
 Para a ligação ao broker foi feito uso do pacote `umqttsimple.py` que pretende simplificar o processo de ligação de uma forma intuitiva e simples.
 
-A rotina `connect()` tem como função principal instanciar o cliente mqtt importado de `umqttsimple.py` colocando a identificação dos dispositivo em `client_id` e o endereço IP do servidor em `mqtt_server`. Depois basta chamar o método `.client()` para tentar a ligação. A função `restart_and_reconnect()` destina-se a fazer *reset* ao microcontrolador e tentar uma nova ligação.
+A rotina `connect()` tem como função principal instanciar o cliente mqtt importado de `umqttsimple.py` colocando a identificação dos dispositivo em `client_id` e o endereço IP do servidor em `mqtt_server`. Depois basta chamar o método `.connect()` para tentar a ligação. A função `restart_and_reconnect()` destina-se a fazer *reset* ao microcontrolador e tentar uma nova ligação.
 ```python
 topic_pub = b'measurement'
 
@@ -432,7 +432,7 @@ Finalmente, temos os nossos timers que são responsáveis pela impressão de inf
 
 ## Limitações do projeto
 
-Verifica-se que para baixas frequências de amostragem existe uma boa coerência entre o valor inserido (até aos 200Hz). Para altas frequências o mesmo não é verdade e verifica-se uma grande discrepância e reconhece-se que o método que se está a usar para o cálculo da frequência de amostragem não é perfeito, contudo podemos tirar um valor ilustrativo dessa frequência e verifica-se que atinge o seu máximo para taxas de amostragem **definidas no ESP32** acima dos 6kHz onde é calculada uma taxa de amostragem **na aplicação** cerca de 3kHz. Na imagem abaixo é facilmente se visualiza as quebras na transmissão de dados. 
+Verifica-se que para baixas frequências de amostragem existe uma boa coerência entre o valor inserido (até aos 200Hz). Para altas frequências o mesmo não é verdade e verifica-se uma grande discrepância e reconhece-se que o método que se está a usar para o cálculo da frequência de amostragem não é perfeito, contudo podemos tirar um valor ilustrativo dessa frequência e verifica-se que atinge o seu máximo para taxas de amostragem **definidas no ESP32** acima dos 6kHz onde é calculada uma taxa de amostragem **na aplicação** de cerca de 3kHz. Na imagem abaixo facilmente se visualiza as quebras na transmissão de dados. 
 
 ![limit](limit.jpg)
 
